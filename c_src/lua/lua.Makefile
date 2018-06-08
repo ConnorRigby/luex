@@ -10,7 +10,7 @@ LUA_LIBDIR := $(LUA_INSTALL_DIR)/lib
 
 # for external thins to use.
 LUA_CFLAGS := -I$(LUA_INCLUDE_DIR)
-LUA_LDFLAGS := -L$(LUA_LIBDIR) -llua
+LUA_LDFLAGS := -L$(LUA_LIBDIR)
 
 LUA_LIB := $(LUA_LIBDIR)/liblua.a
 

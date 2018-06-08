@@ -6,8 +6,6 @@ defmodule Luex do
   @doc false
   def load_nif do
     nif_file = Path.join(:code.priv_dir(:luex), "luex_nif")
-    Logger.info("Loading #{nif_file}")
-
     case :erlang.load_nif(nif_file, 0) do
       :ok -> :ok
       {:error, {:reload, _}} -> :ok
@@ -16,4 +14,5 @@ defmodule Luex do
   end
 
   def init, do: :erlang.nif_error("luex nif not loaded")
+  def dostring(_l, _str), do: :erlang.nif_error("luex nif not loaded")
 end

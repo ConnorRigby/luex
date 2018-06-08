@@ -1,8 +1,10 @@
 #ifndef LUEX_NIF_H
 #define LUEX_NIF_H
 
+typedef lua_State lua_state_t;
+
 typedef struct ResourceData {
-    void* data;
+    lua_state_t *L;
 } resource_data_t;
 
 typedef struct PrivData {
@@ -14,6 +16,7 @@ typedef struct PrivData {
 } priv_data_t;
 
 static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
+static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 
 static void rt_dtor(ErlNifEnv *env, void *obj);
 static int load(ErlNifEnv* env, void** priv, ERL_NIF_TERM info);
@@ -24,7 +27,8 @@ static void unload(ErlNifEnv* env, void* priv);
 static ErlNifResourceType *resource_type;
 
 static ErlNifFunc nif_funcs[] = {
-    {"init", 0, luex_init}
+    {"init", 0, luex_init},
+    {"dostring", 2, luex_dostring}
 };
 
 ERL_NIF_INIT(Elixir.Luex, nif_funcs, &load, &reload, &upgrade, &unload)
