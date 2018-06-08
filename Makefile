@@ -39,6 +39,7 @@ PHONY :=
 
 include $(C_SRC_DIR)/lua/lua.Makefile
 include $(C_SRC_DIR)/lua/luarocks.Makefile
+include $(C_SRC_DIR)/luex/luex.Makefile
 
 .DEFAULT_GOAL := all
 

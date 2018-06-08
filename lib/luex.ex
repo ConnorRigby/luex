@@ -1,18 +1,19 @@
 defmodule Luex do
-  @moduledoc """
-  Documentation for Luex.
-  """
+  require Logger
 
-  @doc """
-  Hello world.
+  @on_load :load_nif
 
-  ## Examples
+  @doc false
+  def load_nif do
+    nif_file = Path.join(:code.priv_dir(:luex), "luex_nif")
+    Logger.info("Loading #{nif_file}")
 
-      iex> Luex.hello
-      :world
-
-  """
-  def hello do
-    :world
+    case :erlang.load_nif(nif_file, 0) do
+      :ok -> :ok
+      {:error, {:reload, _}} -> :ok
+      {:error, reason} -> exit(reason)
+    end
   end
+
+  def init, do: :erlang.nif_error("luex nif not loaded")
 end

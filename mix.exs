@@ -7,6 +7,8 @@ defmodule Luex.MixProject do
       version: "0.1.0",
       elixir: "~> 1.6",
       start_permanent: Mix.env() == :prod,
+      description: description(),
+      package: package(),
       deps: deps(),
       aliases: [format: [&format_c/1, "format"]],
       compilers: [:elixir_make] ++ Mix.compilers(),
@@ -25,8 +27,24 @@ defmodule Luex.MixProject do
 
   # Run "mix help deps" to learn about dependencies.
   defp deps do
-    [{:elixir_make, "~> 0.4.1"}]
+    [
+      {:elixir_make, "~> 0.4.1", runtime: false},
+      {:ex_doc, "~> 0.18.3", only: :dev}
+    ]
   end
+
+  defp description,
+    do: """
+    """
+
+  defp package,
+    do: [
+      licenses: ["MIT"],
+      maintainers: ["Connor Rigby"],
+      links: %{"GitHub" => "https://github.com/connorrigbyy/luex"},
+      source_url: "https://github.com/connorrigbyy/luex",
+      homepage_url: "https://github.com/connorrigbyy/luex"
+    ]
 
   defp format_c([]) do
     astyle =
@@ -35,7 +53,7 @@ defmodule Luex.MixProject do
         Could not format C code since astyle is not available.
         """)
 
-    System.cmd(astyle, ["-n", "-r", "src/*.c", "src/*.h"], into: IO.stream(:stdio, :line))
+    System.cmd(astyle, ["-n", "-r", "c_src/*.c", "c_src/*.h"], into: IO.stream(:stdio, :line))
   end
 
   defp format_c(_args), do: true
@@ -59,7 +77,7 @@ defmodule Luex.MixProject do
       "C_SRC_DIR" => Path.join(__DIR__, "c_src"),
       "PRIV_DIR" => Path.join(__DIR__, "priv"),
       "ERL_EI_INCLUDE_DIR" =>
-        System.get_env("ERL_EI_INCLUDE_DIR") || Path.join([:code.root_dir(), "usr", "lib"]),
+        System.get_env("ERL_EI_INCLUDE_DIR") || Path.join([:code.root_dir(), "usr", "include"]),
       "ERL_EI_LIBDIR" =>
         System.get_env("ERL_EI_LIBDIR") || Path.join([:code.root_dir(), "usr", "lib"])
     }
