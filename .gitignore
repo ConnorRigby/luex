@@ -26,3 +26,4 @@ luex-*.tar
 *.o
 *.a
 *.so
+/priv
