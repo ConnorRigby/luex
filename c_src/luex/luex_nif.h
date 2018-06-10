@@ -13,10 +13,15 @@ typedef struct PrivData {
     ERL_NIF_TERM atom_error;
     ERL_NIF_TERM atom_nil;
     ERL_NIF_TERM atom_number;
+    ERL_NIF_TERM atom_true;
+    ERL_NIF_TERM atom_false;
+    ERL_NIF_TERM atom_unknown_type;
 } priv_data_t;
 
 static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
+static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
+static ERL_NIF_TERM lua_result_to_erlang_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int nresults);
 
 static void rt_dtor(ErlNifEnv *env, void *obj);
 static int load(ErlNifEnv* env, void** priv, ERL_NIF_TERM info);
@@ -28,7 +33,8 @@ static ErlNifResourceType *resource_type;
 
 static ErlNifFunc nif_funcs[] = {
     {"init", 0, luex_init},
-    {"dostring", 2, luex_dostring}
+    {"dostring", 2, luex_dostring, ERL_NIF_DIRTY_JOB_CPU_BOUND},
+    {"dofile", 2, luex_dofile, ERL_NIF_DIRTY_JOB_CPU_BOUND}
 };
 
 ERL_NIF_INIT(Elixir.Luex, nif_funcs, &load, &reload, &upgrade, &unload)
