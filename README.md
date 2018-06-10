@@ -2,13 +2,6 @@
 
 Run lua inside Elixir/Erlang
 
-```elixir
-{:ok, l} = Luex.init()
-Luex.dostring(l, "while(true) do end")
-```
-
-and that's it. Now the vm is stuck forever. Good luck.
-
 ## Installation
 
 If [available in Hex](https://hex.pm/docs/publish), the package can be installed
@@ -22,6 +15,47 @@ def deps do
 end
 ```
 
-Documentation can be generated with [ExDoc](https://github.com/elixir-lang/ex_doc)
-and published on [HexDocs](https://hexdocs.pm). Once published, the docs can
-be found at [https://hexdocs.pm/luex](https://hexdocs.pm/luex).
+## Example Usage
+
+```elixir
+{:ok, l} = Luex.init()
+Luex.dostring(l, "while(true) do end")
+```
+and that's it. Now the vm is stuck forever. Good luck.
+
+```elixir
+Luex.dostring(l, "return 1 + 1")
+{:ok, {2.0}}
+```
+
+```elixir
+Luex.dostring(l, "whoops()")
+{:error,
+ "[string \"whoops()\r...\"]:1: attempt to call a nil value (global 'whoops')"}
+```
+
+```elixir
+Luex.dostring(l, "return 1, 2, 3")
+{:ok, {1.0, 2.0, 3.0}}
+```
+
+```elixir
+Luex.dostring(l, "return {a = 1}")
+{:ok, {%{"a" => 1.0}}}
+```
+
+```elixir
+Luex.dostring(l, "return 'abcd'")
+{:ok, {"abcd"}}
+```
+
+```elixir
+Luex.dostring(l, "return 'cool string!', 0")
+{:ok, {"cool string!", 0.0}}
+```
+
+```elixir
+Luex.dostring(l, "return \"cool string!\", 1, nil, true, false, {a = 123, b = {c = 1}}")
+{:ok,
+ {"cool string!", 1.0, nil, true, false, %{"a" => 123.0, "b" => %{"c" => 1.0}}}}
+```

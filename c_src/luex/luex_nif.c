@@ -101,7 +101,12 @@ static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM a
 
     int top = lua_gettop(rd->L);
 
-    if(luaL_dostring(rd->L, input.data) != LUA_OK) {
+    // Make a copy of the data to ensure there is a null character at the end of it.
+    char* data = calloc(input.size + 1, sizeof(char));
+    memcpy(data, input.data, input.size);
+
+    // if((lua_load(rd->L, enif_binary_reader, &input, "luex_dostring", "bt") || lua_pcall(rd->L, 0, LUA_MULTRET, 0)) != LUA_OK) {
+    if(luaL_dostring(rd->L, data) != LUA_OK) {
         ErlNifBinary output;
         const char* boop = lua_tostring(rd->L, -1);
         enif_alloc_binary(strlen(boop), &output);
@@ -126,7 +131,11 @@ static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM arg
 
     int top = lua_gettop(rd->L);
 
-    if(luaL_dofile(rd->L, input.data) != LUA_OK) {
+    // Make a copy of the data to ensure there is a null character at the end of it.
+    char* data = calloc(input.size + 1, sizeof(char));
+    memcpy(data, input.data, input.size);
+
+    if(luaL_dofile(rd->L, data) != LUA_OK) {
         ErlNifBinary output;
         const char* boop = lua_tostring(rd->L, -1);
         enif_alloc_binary(strlen(boop), &output);
