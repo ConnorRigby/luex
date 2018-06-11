@@ -21,7 +21,7 @@ typedef struct PrivData {
 static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
-static ERL_NIF_TERM lua_result_to_erlang_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int nresults);
+static ERL_NIF_TERM lua_return_to_tuple(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int nresults);
 
 static void rt_dtor(ErlNifEnv *env, void *obj);
 static int load(ErlNifEnv* env, void** priv, ERL_NIF_TERM info);

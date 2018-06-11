@@ -53,8 +53,7 @@ static int reload(ErlNifEnv* env, void** priv, ERL_NIF_TERM info) {
 }
 
 static int upgrade(ErlNifEnv* env, void** priv, void** old_priv, ERL_NIF_TERM info) {
-    // return load(env, priv, info);
-    return 0;
+    return load(env, priv, info);
 }
 
 static void unload(ErlNifEnv* env, void* priv) {
@@ -105,7 +104,6 @@ static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM a
     char* data = calloc(input.size + 1, sizeof(char));
     memcpy(data, input.data, input.size);
 
-    // if((lua_load(rd->L, enif_binary_reader, &input, "luex_dostring", "bt") || lua_pcall(rd->L, 0, LUA_MULTRET, 0)) != LUA_OK) {
     if(luaL_dostring(rd->L, data) != LUA_OK) {
         ErlNifBinary output;
         const char* boop = lua_tostring(rd->L, -1);
@@ -115,7 +113,7 @@ static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM a
     }
 
     int nresults = lua_gettop(rd->L) - top;
-    return enif_make_tuple2(env, priv->atom_ok, lua_result_to_erlang_term(env, priv, rd->L, nresults));
+    return enif_make_tuple2(env, priv->atom_ok, lua_return_to_tuple(env, priv, rd->L, nresults));
 }
 
 static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
@@ -144,7 +142,7 @@ static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM arg
     }
 
     int nresults = lua_gettop(rd->L) - top;
-    return enif_make_tuple2(env, priv->atom_ok, lua_result_to_erlang_term(env, priv, rd->L, nresults));
+    return enif_make_tuple2(env, priv->atom_ok, lua_return_to_tuple(env, priv, rd->L, nresults));
 }
 
 static int map_put(ErlNifEnv *env, ERL_NIF_TERM map_in, ERL_NIF_TERM* map_out, ERL_NIF_TERM key, ERL_NIF_TERM value) {
@@ -152,7 +150,7 @@ static int map_put(ErlNifEnv *env, ERL_NIF_TERM map_in, ERL_NIF_TERM* map_out, E
 }
 
 static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int stack_index);
-static ERL_NIF_TERM iterate_and_print(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, ERL_NIF_TERM map, int index);
+static ERL_NIF_TERM convert_table_to_map(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, ERL_NIF_TERM map, int index);
 
 static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int stack_index) {
     switch(lua_type(L, stack_index)) {
@@ -171,7 +169,7 @@ static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state
     }
     case LUA_TTABLE: {
         ERL_NIF_TERM map = enif_make_new_map(env);
-        return iterate_and_print(env, priv, L, map, stack_index);
+        return convert_table_to_map(env, priv, L, map, stack_index);
     }
     case LUA_TFUNCTION:
     case LUA_TUSERDATA:
@@ -183,7 +181,7 @@ static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state
 }
 
 // https://stackoverflow.com/questions/6137684/iterate-through-lua-table
-static ERL_NIF_TERM iterate_and_print(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, ERL_NIF_TERM map, int index) {
+static ERL_NIF_TERM convert_table_to_map(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, ERL_NIF_TERM map, int index) {
     // Push another reference to the table on top of the stack (so we know
     // where it is, and this function can work for negative, positive and
     // pseudo indices
@@ -202,14 +200,8 @@ static ERL_NIF_TERM iterate_and_print(ErlNifEnv *env, priv_data_t* priv, lua_sta
         enif_alloc_binary(strlen(key), &key_bin);
         strcpy(key_bin.data, key);
         ERL_NIF_TERM key_term = enif_make_binary(env, &key_bin);
-
         map_put(env, map, &map, key_term, convert_to_term(env, priv, L, -2));
-
-        // const char *value = lua_tostring(L, -2);
-        // printf("%s => %s\r\n", key, value);
-        // pop value + copy of key, leaving original key
         lua_pop(L, 2);
-        // stack now contains: -1 => key; -2 => table
     }
     // stack now contains: -1 => table (when lua_next returns 0 it pops the key
     // but does not push anything.)
@@ -219,7 +211,7 @@ static ERL_NIF_TERM iterate_and_print(ErlNifEnv *env, priv_data_t* priv, lua_sta
     return map;
 }
 
-static ERL_NIF_TERM lua_result_to_erlang_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int nresults) {
+static ERL_NIF_TERM lua_return_to_tuple(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int nresults) {
     ERL_NIF_TERM ret[nresults];
 
     for(int i = 0; i < nresults; i++) {
