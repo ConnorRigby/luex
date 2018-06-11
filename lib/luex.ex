@@ -17,4 +17,26 @@ defmodule Luex do
   def init, do: :erlang.nif_error("luex nif not loaded")
   def dostring(_l, _str), do: :erlang.nif_error("luex nif not loaded")
   def dofile(_l, _str), do: :erlang.nif_error("luex nif not loaded")
+
+  def test() do
+    {:ok, l} = Luex.init()
+    lua = """
+    i = 0
+    wow = coroutine.wrap(function ()
+      while true do
+       i = i + 1
+       coroutine.yield(i)
+      end
+    end)
+
+    -- use
+    return wow()
+    """
+    {:ok, {1.0}} = Luex.dostring(l, lua)
+    for i <- 0..10000000 do
+      {:ok, {val}} = Luex.dostring(l, "return wow()")
+      {:ok, {}} = Luex.dostring(l, "collectgarbage()")
+      val
+    end
+  end
 end

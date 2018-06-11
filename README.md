@@ -66,3 +66,25 @@ Luex.dostring(l, "a = 1000")
 Luex.dostring(l, "return a")
 {:ok, {1000.0}}
 ```
+
+```elixir
+iex(7)> Luex.dostring(l, """
+i = 0
+wow = coroutine.wrap(function ()
+  while true do
+   i = i + 1
+   coroutine.yield(i)
+  end
+end)
+return wow()
+""")
+{:ok, {1.0}}
+Luex.dostring(l, "return wow()")
+{:ok, {2.0}}
+Luex.dostring(l, "return wow()")
+{:ok, {3.0}}
+Luex.dostring(l, "return wow()")
+{:ok, {4.0}}
+Luex.dostring(l, "return wow()")
+{:ok, {5.0}}
+```

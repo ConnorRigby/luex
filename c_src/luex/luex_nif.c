@@ -111,7 +111,8 @@ static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM a
         strcpy(output.data, boop);
         return enif_make_tuple2(env, priv->atom_error, enif_make_binary(env, &output));
     }
-
+    free(data);
+    enif_release_binary(&input);
     int nresults = lua_gettop(rd->L) - top;
     return enif_make_tuple2(env, priv->atom_ok, lua_return_to_tuple(env, priv, rd->L, nresults));
 }
@@ -141,6 +142,8 @@ static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM arg
         return enif_make_tuple2(env, priv->atom_error, enif_make_binary(env, &output));
     }
 
+    free(data);
+    enif_release_binary(&input);
     int nresults = lua_gettop(rd->L) - top;
     return enif_make_tuple2(env, priv->atom_ok, lua_return_to_tuple(env, priv, rd->L, nresults));
 }
