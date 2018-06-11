@@ -20,9 +20,13 @@ static int l_luex_print(lua_State* L) {
 }
 
 static const struct luaL_Reg LUEX_NIF_LUA_LIB [] = {
-    {"print", l_luex_print},
+    // {"print", l_luex_print},
     {NULL, NULL}
 };
+
+static int map_put(ErlNifEnv *env, ERL_NIF_TERM map_in, ERL_NIF_TERM* map_out, ERL_NIF_TERM key, ERL_NIF_TERM value) {
+    return enif_make_map_put(env, map_in, key, value, map_out);
+}
 
 static void rt_dtor(ErlNifEnv *env, void *obj) {
     resource_data_t *rd = (resource_data_t *)obj;
@@ -41,6 +45,11 @@ static int load(ErlNifEnv* env, void** priv, ERL_NIF_TERM info) {
     data->atom_true = enif_make_atom(env, "true");
     data->atom_false = enif_make_atom(env, "false");
     data->atom_unknown_type = enif_make_atom(env, "unknown_type");
+    data->atom_k_struct = enif_make_atom(env, "__struct__");
+    data->atom_k_name = enif_make_atom(env, "name");
+    data->atom_k_type = enif_make_atom(env, "type");
+    data->atom_k_ptr = enif_make_atom(env, "ptr");
+    data->atom_struct_name = enif_make_atom(env, "Elixir.Luex.OpaqueData");
 
     *priv = (void*)data;
 
@@ -148,12 +157,20 @@ static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM arg
     return enif_make_tuple2(env, priv->atom_ok, lua_return_to_tuple(env, priv, rd->L, nresults));
 }
 
-static int map_put(ErlNifEnv *env, ERL_NIF_TERM map_in, ERL_NIF_TERM* map_out, ERL_NIF_TERM key, ERL_NIF_TERM value) {
-    return enif_make_map_put(env, map_in, key, value, map_out);
-}
+static ERL_NIF_TERM convert_ptr_to_opaque_map(ErlNifEnv *env, priv_data_t* priv, const void* ptr, int type, const char* name) {
+    ErlNifBinary output;
+    ERL_NIF_TERM map;
+    enif_alloc_binary(strlen(name), &output);
+    strcpy(output.data, name);
 
-static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int stack_index);
-static ERL_NIF_TERM convert_table_to_map(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, ERL_NIF_TERM map, int index);
+    map = enif_make_new_map(env);
+    map_put(env, map, &map, priv->atom_k_struct, priv->atom_struct_name);
+    map_put(env, map, &map, priv->atom_k_name, enif_make_binary(env, &output));
+    map_put(env, map, &map, priv->atom_k_type, enif_make_int(env, type));
+    map_put(env, map, &map, priv->atom_k_ptr, enif_make_int64(env, (size_t)ptr));
+
+    return map;
+}
 
 static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int stack_index) {
     switch(lua_type(L, stack_index)) {
@@ -170,48 +187,17 @@ static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state
         strcpy(output.data, ret_str);
         return enif_make_binary(env, &output);
     }
-    case LUA_TTABLE: {
-        ERL_NIF_TERM map = enif_make_new_map(env);
-        return convert_table_to_map(env, priv, L, map, stack_index);
-    }
+    case LUA_TTABLE:
+        return convert_ptr_to_opaque_map(env, priv, lua_topointer(L, stack_index), LUA_TTABLE, "Ltable");
     case LUA_TFUNCTION:
+        return convert_ptr_to_opaque_map(env, priv, lua_topointer(L, stack_index), LUA_TFUNCTION, "Lfunction");
     case LUA_TUSERDATA:
+        return convert_ptr_to_opaque_map(env, priv, lua_topointer(L, stack_index), LUA_TUSERDATA, "Luserdata");
     case LUA_TTHREAD:
+        return convert_ptr_to_opaque_map(env, priv, lua_topointer(L, stack_index), LUA_TTHREAD, "Lthread");
     case LUA_TLIGHTUSERDATA:
-    default:
-        return priv->atom_unknown_type;
+        return convert_ptr_to_opaque_map(env, priv, lua_topointer(L, stack_index), LUA_TLIGHTUSERDATA, "Llightuserdata");
     }
-}
-
-// https://stackoverflow.com/questions/6137684/iterate-through-lua-table
-static ERL_NIF_TERM convert_table_to_map(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, ERL_NIF_TERM map, int index) {
-    // Push another reference to the table on top of the stack (so we know
-    // where it is, and this function can work for negative, positive and
-    // pseudo indices
-    lua_pushvalue(L, index);
-    // stack now contains: -1 => table
-    lua_pushnil(L);
-    // stack now contains: -1 => nil; -2 => table
-    while(lua_next(L, -2)) {
-        // stack now contains: -1 => value; -2 => key; -3 => table
-        // copy the key so that lua_tostring does not modify the original
-        lua_pushvalue(L, -2);
-        // stack now contains: -1 => key; -2 => value; -3 => key; -4 => table
-        const char *key = lua_tostring(L, -1);
-
-        ErlNifBinary key_bin;
-        enif_alloc_binary(strlen(key), &key_bin);
-        strcpy(key_bin.data, key);
-        ERL_NIF_TERM key_term = enif_make_binary(env, &key_bin);
-        map_put(env, map, &map, key_term, convert_to_term(env, priv, L, -2));
-        lua_pop(L, 2);
-    }
-    // stack now contains: -1 => table (when lua_next returns 0 it pops the key
-    // but does not push anything.)
-    // Pop table
-    lua_pop(L, 1);
-    // Stack is now the same as it was on entry to this function
-    return map;
 }
 
 static ERL_NIF_TERM lua_return_to_tuple(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int nresults) {

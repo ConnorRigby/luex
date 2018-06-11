@@ -40,11 +40,6 @@ Luex.dostring(l, "return 1, 2, 3")
 ```
 
 ```elixir
-Luex.dostring(l, "return {a = 1}")
-{:ok, {%{"a" => 1.0}}}
-```
-
-```elixir
 Luex.dostring(l, "return 'abcd'")
 {:ok, {"abcd"}}
 ```
@@ -52,12 +47,6 @@ Luex.dostring(l, "return 'abcd'")
 ```elixir
 Luex.dostring(l, "return 'cool string!', 0")
 {:ok, {"cool string!", 0.0}}
-```
-
-```elixir
-Luex.dostring(l, "return \"cool string!\", 1, nil, true, false, {a = 123, b = {c = 1}}")
-{:ok,
- {"cool string!", 1.0, nil, true, false, %{"a" => 123.0, "b" => %{"c" => 1.0}}}}
 ```
 
 ```elixir

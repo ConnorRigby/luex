@@ -16,11 +16,19 @@ typedef struct PrivData {
     ERL_NIF_TERM atom_true;
     ERL_NIF_TERM atom_false;
     ERL_NIF_TERM atom_unknown_type;
+    ERL_NIF_TERM atom_k_struct;
+    ERL_NIF_TERM atom_k_name;
+    ERL_NIF_TERM atom_k_type;
+    ERL_NIF_TERM atom_k_ptr;
+    ERL_NIF_TERM atom_struct_name;
 } priv_data_t;
 
 static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
+
+static ERL_NIF_TERM convert_to_term(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int stack_index);
+static ERL_NIF_TERM convert_ptr_to_opaque_map(ErlNifEnv *env, priv_data_t* priv, const void* ptr, int type, const char* name);
 static ERL_NIF_TERM lua_return_to_tuple(ErlNifEnv *env, priv_data_t* priv, lua_state_t* L, int nresults);
 
 static void rt_dtor(ErlNifEnv *env, void *obj);

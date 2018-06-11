@@ -29,7 +29,8 @@ defmodule Luex.MixProject do
   defp deps do
     [
       {:elixir_make, "~> 0.4.1", runtime: false},
-      {:ex_doc, "~> 0.18.3", only: :dev}
+      {:ex_doc, "~> 0.18.3", only: :dev},
+      {:dialyxir, "~> 0.5.1", only: [:dev, :test]}
     ]
   end
 

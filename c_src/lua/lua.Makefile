@@ -16,8 +16,22 @@ LUA_LIB := $(LUA_LIBDIR)/liblua.a
 LUA_BIN := $(PRIV_DIR)/lua
 LUA_C   := $(PRIV_DIR)/luac
 
-LUA_BUILD_CFLAGS ?= -Wall -std=gnu99
+LUA_BUILD_CFLAGS ?= -Wall -std=gnu99 -DDEBUG -g
 LUA_BUILD_LDFLAGS ?= -pthread
+
+LUA_TARGET :=
+
+ifeq ($(OS),Windows_NT)
+LUA_TARGET := mingw
+else
+UNAME_S := $(shell uname -s)
+ifeq ($(UNAME_S),Linux)
+LUA_TARGET := linux
+endif
+ifeq ($(UNAME_S),Darwin)
+LUA_TARGET := macosx
+endif
+endif
 
 # Add build targets to global manifest.
 # Don't add a clean task here, since it doesn't really need to ever be rebuilt.
@@ -35,7 +49,7 @@ $(LUA_INSTALL_DIR):
 	mkdir -p $(LUA_INSTALL_DIR)
 
 $(LUA_LIB): | $(LUA_INSTALL_DIR) $(LUA_SRC_DIR)
-	cd $(DEPS_DIR)/$(LUA_NAME) && make MYCFLAGS="$(LUA_BUILD_CFLAGS) -fPIC -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1" MYLDFLAGS="$(LUA_BUILD_LDFLAGS)" linux
+	cd $(DEPS_DIR)/$(LUA_NAME) && make MYCFLAGS="$(LUA_BUILD_CFLAGS) -fPIC -DLUA_COMPAT_5_2 -DLUA_COMPAT_5_1" MYLDFLAGS="$(LUA_BUILD_LDFLAGS)" $(LUA_TARGET)
 	cd $(DEPS_DIR)/$(LUA_NAME) && make -e TO_LIB="liblua.a liblua.so liblua.so.$(LUA_VERSION)" INSTALL_DATA='cp -d' INSTALL_TOP=$(LUA_INSTALL_DIR) INSTALL_MAN= INSTALL_LMOD= INSTALL_CMOD= install
 
 $(LUA_BIN): $(LUA_LIB)

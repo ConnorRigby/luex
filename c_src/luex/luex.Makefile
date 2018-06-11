@@ -3,7 +3,7 @@ LUEX_NIF_SRC     := $(wildcard $(LUEX_NIF_SRC_DIR)/*.c)
 LUEX_NIF_OBJ     := $(LUEX_NIF_SRC:.c=.o)
 LUEX_NIF         := $(PRIV_DIR)/luex_nif.so
 
-LUEX_NIF_CFLAGS ?= -fPIC -O2
+LUEX_NIF_CFLAGS ?= -fPIC -O2 -DDEBUG -g -Wunused
 LUEX_NIF_LDFLAGS ?= -fPIC -shared -pedantic
 
 ALL   += luex_nif
