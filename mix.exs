@@ -30,7 +30,7 @@ defmodule Luex.MixProject do
     [
       {:elixir_make, "~> 0.4.1", runtime: false},
       {:ex_doc, "~> 0.18.3", only: :dev},
-      {:dialyxir, "~> 0.5.1", only: [:dev, :test]}
+      {:dialyxir, github: "jeremyjh/dialyxir", only: [:dev, :test]}
     ]
   end
 
