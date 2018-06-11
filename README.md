@@ -59,3 +59,10 @@ Luex.dostring(l, "return \"cool string!\", 1, nil, true, false, {a = 123, b = {c
 {:ok,
  {"cool string!", 1.0, nil, true, false, %{"a" => 123.0, "b" => %{"c" => 1.0}}}}
 ```
+
+```elixir
+Luex.dostring(l, "a = 1000")
+{:ok, {}}
+Luex.dostring(l, "return a")
+{:ok, {1000.0}}
+```
