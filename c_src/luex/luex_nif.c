@@ -20,7 +20,7 @@ static int l_luex_print(lua_State* L) {
 }
 
 static const struct luaL_Reg LUEX_NIF_LUA_LIB [] = {
-    // {"print", l_luex_print},
+    {"print", l_luex_print},
     {NULL, NULL}
 };
 

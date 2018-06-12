@@ -16,7 +16,7 @@ function timeit(f, ...)
   return delta, unpack(res)
 end
 
-for _, n in ipairs({10, 25, 35, 100}) do
+for _, n in ipairs({10, 25, 35, 100, 100000, 150000, 150500, 1505000}) do
   print("Fib of "..n)
   print(string.format("    time: %s value: %s", timeit(tail_call, n)))
 end

@@ -15,8 +15,8 @@ timeit = fn({m, f, a}) ->
   {delta, res}
 end
 
-for n <- [10, 25, 35, 100, 5000] do
+for n <- [10, 25, 35, 100, 100000, 150000, 150500, 1505000] do
   IO.puts "Fib of #{n}"
   {time, value} = timeit.({Fib, :fib2, [n]})
-  IO.puts "    time: #{time} value: #{value}"
+  IO.puts "    time: #{time}"
 end
