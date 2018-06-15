@@ -4,9 +4,9 @@ LUAROCKS_DL := v$(LUAROCKS_VERSION).tar.gz
 LUAROCKS_DL_URL := "https://github.com/luarocks/luarocks/archive/$(LUAROCKS_DL)"
 
 LUAROCKS_DIR := $(DEPS_DIR)/$(LUAROCKS_NAME)
-LUAROCKS_BUILD_DIR := $(BUILD_DIR)/$(LUAROCKS_NAME)
+LUAROCKS_INSTALL_DIR := $(LUA_INSTALL_DIR)
 
-LUAROCKS := $(LUAROCKS_BUILD_DIR)/bin/luarocks
+LUAROCKS := $(LUAROCKS_INSTALL_DIR)/bin/luarocks
 
 ALL += $(LUAROCKS)
 PHONY += luarocks_clean luarocks_fullclean
@@ -17,14 +17,14 @@ $(LUAROCKS_DIR):
 	$(RM)     $(LUAROCKS_DL)
 	$(MV)     $(LUAROCKS_NAME) $(DEPS_DIR)
 
-$(LUAROCKS_BUILD_DIR):
-	$(MKDIR_P) $(LUAROCKS_BUILD_DIR)
+$(LUAROCKS_INSTALL_DIR):
+	$(MKDIR_P) $(LUAROCKS_INSTALL_DIR)
 
-$(LUAROCKS): | $(LUAROCKS_BUILD_DIR) $(LUAROCKS_DIR)
+$(LUAROCKS): | $(LUAROCKS_INSTALL_DIR) $(LUAROCKS_DIR)
 	cd $(LUAROCKS_DIR) && ./configure \
-	--prefix=$(LUAROCKS_BUILD_DIR) \
+	--prefix=$(LUAROCKS_INSTALL_DIR) \
 	--with-lua=$(LUA_INSTALL_DIR) \
-	--with-downloader=wget \
+	--with-downloader=$(WGET) \
 	--force-config && make build && make install
 
 luarocks_clean:
@@ -32,4 +32,4 @@ luarocks_clean:
 
 luarocks_fullclean: lua_clean
 	$(RM) -r $(C_SRC_DIR)/$(LUAROCKS_NAME)
-	$(RM) -r $(LUAROCKS_BUILD_DIR)
+	$(RM) -r $(LUAROCKS_INSTALL_DIR)
