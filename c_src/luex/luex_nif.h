@@ -1,6 +1,8 @@
 #ifndef LUEX_NIF_H
 #define LUEX_NIF_H
 
+#include <stdbool.h>
+
 typedef lua_State lua_state_t;
 
 #define HERETXT(...) #__VA_ARGS__
@@ -8,6 +10,8 @@ typedef lua_State lua_state_t;
 typedef struct ResourceData {
     lua_state_t *L;
     ErlNifPid self;
+    sem_t *mailbox_ready;
+    ERL_NIF_TERM const *mailbox;
 } resource_data_t;
 
 typedef struct PrivData {
@@ -28,6 +32,7 @@ typedef struct PrivData {
 
 static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_register_function(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
+static ERL_NIF_TERM luex_into_mailbox(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]);
 
@@ -46,6 +51,7 @@ static ErlNifResourceType *resource_type;
 static ErlNifFunc nif_funcs[] = {
     {"new", 0, luex_init},
     {"register_function", 3, luex_register_function},
+    {"into_mailbox", 2, luex_into_mailbox},
     {"dostring", 2, luex_dostring, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"dofile", 2, luex_dofile, ERL_NIF_DIRTY_JOB_CPU_BOUND}
 };

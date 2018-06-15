@@ -28,6 +28,8 @@ defmodule Luex do
 
   def register_function(_l, _fun, _arity), do: :erlang.nif_error("luex nif not loaded")
 
+  def into_mailbox(_, _data), do: :erlang.nif_error("luex nif not loaded")
+
   @on_load :load_nif
   @doc false
   def load_nif do

@@ -1,5 +1,6 @@
 #include <erl_nif.h>
 #include <stdio.h>
+#include <semaphore.h>
 #include <string.h>
 
 #include <lua.h>
@@ -20,12 +21,61 @@ static int luex_print(lua_State* L) {
 }
 
 static int luex_receive(lua_State* L) {
-  return 0;
+  void* user_data_ptr;
+  resource_data_t* rd;
+  priv_data_t* priv;
+  ErlNifEnv* env;
+
+  env = enif_alloc_env();
+  lua_getglobal(L, "__RESOURCE_DATA__");
+  user_data_ptr = lua_touserdata(L, -1);
+  if(user_data_ptr == NULL) {
+    luaL_error(L, "Could not find global resource object!\r\n");
+  }
+  rd = (resource_data_t*)user_data_ptr;
+
+  lua_getglobal(L, "__PRIVATE_DATA__");
+  user_data_ptr = lua_touserdata(L, -1);
+  if(user_data_ptr == NULL) {
+    luaL_error(L, "Could not find global private data object!\r\n");
+  }
+
+  priv = (priv_data_t*)user_data_ptr;
+
+  enif_fprintf(stderr, "%p\r\n", rd);
+  sem_wait(rd->mailbox_ready);
+  sem_init(rd->mailbox_ready, 1, 0);
+
+  ERL_NIF_TERM const *data = rd->mailbox;
+  ERL_NIF_TERM const *array;
+  int arity;
+  if(!enif_get_tuple(env, *data, &arity, &array)) {
+    luaL_error(L, "Error decoding mailbox data.\r\n");
+  }
+
+  for(int i = 0; i<arity; i++) {
+    if(enif_compare(array[i], priv->atom_true) == 0) {
+      lua_pushboolean(L, 1);
+    } else if(enif_compare(array[i], priv->atom_false) == 0) {
+      lua_pushboolean(L, 0);
+    } else if(enif_compare(array[i], priv->atom_nil) == 0) {
+      lua_pushnil(L);
+    } else if(enif_is_number(env, array[i])) {
+      double data;
+      enif_get_double(env, array[i], &data);
+      lua_pushnumber(L, data);
+    }
+    else {
+      luaL_error(L, "Unknown type for term.\r\n");
+    }
+  }
+
+  return arity;
 }
 
 static int luex_send(lua_State* L) {
     int nargs = lua_gettop(L);
-    ERL_NIF_TERM send_data;
+    ERL_NIF_TERM send_data, tag;
     void* user_data_ptr;
     ErlNifEnv* env;
     priv_data_t* priv;
@@ -46,16 +96,40 @@ static int luex_send(lua_State* L) {
     }
 
     priv = (priv_data_t*)user_data_ptr;
-    lua_pop(L, 2);
 
-    send_data = enif_make_tuple2(env, enif_make_resource(env, rd), lua_return_to_tuple(env, priv, L, nargs));
+    lua_getglobal(L, "__TAG__");
+    if(lua_isnil(L, -1)) {
+      tag = priv->atom_nil;
+    } else if(lua_isstring(L, -1)) {
+      ErlNifBinary output;
+      const char* boop = lua_tostring(rd->L, -1);
+      enif_alloc_binary(strlen(boop), &output);
+      strcpy(output.data, boop);
+      tag = enif_make_binary(env, &output);
+    }
+    lua_pop(L, 3);
+    send_data = enif_make_tuple2(env, tag, lua_return_to_tuple(env, priv, L, nargs));
     enif_send(env, &rd->self, NULL, send_data);
     return 0;
 }
 
-// static int luex_wrap(lua_State* L) {
-//
-// }
+static int luex_wrap(lua_State* L) {
+  // int nargs = lua_gettop(L);
+  lua_Debug ar;
+  if(!lua_getstack(L, 0, &ar))  /* no stack frame? */
+    ar.name = "?"; /* Some default ? */
+  else {
+    lua_getinfo(L, "n", &ar);
+    if (ar.name == NULL)
+      ar.name = "?"; /* <-- PUT DEFAULT HERE */
+  }
+  // enif_fprintf(stderr, "hello??? %s\r\n", ar.name);
+
+  lua_pushstring(L, ar.name);
+  lua_setglobal(L, "__TAG__");
+  luex_send(L);
+  return luex_receive(L);
+}
 
 static const struct luaL_Reg LUEX_NIF_LUA_LIB [] = {
     {"print",    luex_print},
@@ -138,16 +212,15 @@ static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[
 
     rd->L = L;
     rd->self = self;
+    rd->mailbox_ready = malloc(sizeof(sem_t));
+    sem_init(rd->mailbox_ready, 1, 0);
+    rd->mailbox = &priv->atom_nil;
 
     res = enif_make_resource(env, rd);
     enif_release_resource(rd);
 
     return enif_make_tuple2(env, priv->atom_ok, res);
 }
-
-/*
-TODO(Connor) this is such a hack.
-*/
 
 // register_function(l, :add, 2)
 static ERL_NIF_TERM luex_register_function(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
@@ -176,31 +249,27 @@ static ERL_NIF_TERM luex_register_function(ErlNifEnv *env, int argc, const ERL_N
   function_char = malloc(size);
   enif_get_atom(env, function, function_char, size, ERL_NIF_LATIN1);
   enif_fprintf(stderr, "registering function: %s %d\r\n", function_char, arity);
-
-  const char* templ = HERETXT(
-    _G.%s = function(...)
-       local n = select('#', ...);
-       local arg = {...};
-       send("call", %s, unpack(arg));
-       return receive();
-    end
-    \0
-  );
-  char* data;
-  int len = snprintf(NULL, 0, templ, function_char, function_char);
-  data = malloc(len * sizeof(char) + 1);
-  snprintf(data, len + 1, templ, function_char, function_char);
-
-  if(luaL_dostring(rd->L, data) != LUA_OK) {
-      ErlNifBinary output;
-      const char* boop = lua_tostring(rd->L, -1);
-      enif_alloc_binary(strlen(boop), &output);
-      strcpy(output.data, boop);
-      return enif_make_tuple2(env, priv->atom_error, enif_make_binary(env, &output));
-  }
+  lua_pushcfunction(rd->L, luex_wrap);
+  lua_setglobal(rd->L, function_char);
 
   free(function_char);
   return enif_make_resource(env, rd);
+}
+
+static ERL_NIF_TERM luex_into_mailbox(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
+  priv_data_t* priv = enif_priv_data(env);
+
+  resource_data_t* rd;
+  if(!enif_get_resource(env, argv[0], resource_type, (void **)&rd))
+      return enif_make_badarg(env);
+
+  if(!enif_is_tuple(env, argv[1]))
+    return enif_make_badarg(env);
+
+  sem_post(rd->mailbox_ready);
+  rd->mailbox = &argv[1];
+  enif_fprintf(stderr, "%p\r\n", rd);
+  return priv->atom_ok;
 }
 
 static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
