@@ -5,6 +5,7 @@ typedef lua_State lua_state_t;
 
 typedef struct ResourceData {
     lua_state_t *L;
+    ErlNifPid self;
 } resource_data_t;
 
 typedef struct PrivData {
@@ -40,7 +41,7 @@ static void unload(ErlNifEnv* env, void* priv);
 static ErlNifResourceType *resource_type;
 
 static ErlNifFunc nif_funcs[] = {
-    {"init", 0, luex_init},
+    {"new", 0, luex_init},
     {"dostring", 2, luex_dostring, ERL_NIF_DIRTY_JOB_CPU_BOUND},
     {"dofile", 2, luex_dofile, ERL_NIF_DIRTY_JOB_CPU_BOUND}
 };

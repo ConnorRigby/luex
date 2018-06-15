@@ -19,8 +19,39 @@ static int l_luex_print(lua_State* L) {
     return 0;
 }
 
+static int l_send(lua_State* L) {
+    int nargs = lua_gettop(L);
+    ERL_NIF_TERM send_data;
+    void* user_data_ptr;
+    ErlNifEnv* env;
+    priv_data_t* priv;
+    resource_data_t* rd;
+    env = enif_alloc_env();
+
+    lua_getglobal(L, "__RESOURCE_DATA__");
+    user_data_ptr = lua_touserdata(L, -1);
+    if(user_data_ptr == NULL) {
+      luaL_error(L, "Could not find global resource object!\r\n");
+    }
+    rd = (resource_data_t*)user_data_ptr;
+
+    lua_getglobal(L, "__PRIVATE_DATA__");
+    user_data_ptr = lua_touserdata(L, -1);
+    if(user_data_ptr == NULL) {
+      luaL_error(L, "Could not find global private data object!\r\n");
+    }
+    
+    priv = (priv_data_t*)user_data_ptr;
+    lua_pop(L, 2);
+
+    send_data = enif_make_tuple2(env, priv->atom_ok, lua_return_to_tuple(env, priv, L, nargs));
+    enif_send(env, &rd->self, NULL, send_data);
+    return 0;
+}
+
 static const struct luaL_Reg LUEX_NIF_LUA_LIB [] = {
     {"print", l_luex_print},
+    {"send",  l_send},
     {NULL, NULL}
 };
 
@@ -29,7 +60,7 @@ static int map_put(ErlNifEnv *env, ERL_NIF_TERM map_in, ERL_NIF_TERM* map_out, E
 }
 
 static void rt_dtor(ErlNifEnv *env, void *obj) {
-    resource_data_t *rd = (resource_data_t *)obj;
+    resource_data_t* rd = (resource_data_t *)obj;
     enif_fprintf(stderr, "rt_dtor called\r\n");
     lua_close(rd->L);
 }
@@ -72,6 +103,8 @@ static void unload(ErlNifEnv* env, void* priv) {
 static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
     priv_data_t* priv = enif_priv_data(env);
     resource_data_t *rd;
+    ErlNifPid self;
+    enif_self(env, &self);
 
     ERL_NIF_TERM res;
 
@@ -79,6 +112,15 @@ static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[
 
     lua_state_t *L;
     L = luaL_newstate();
+
+    lua_pushlightuserdata(L, (void*)env);
+    lua_setglobal(L, "__ENV__");
+
+    lua_pushlightuserdata(L, (void*)rd);
+    lua_setglobal(L, "__RESOURCE_DATA__");
+
+    lua_pushlightuserdata(L, (void*)priv);
+    lua_setglobal(L, "__PRIVATE_DATA__");
 
     // Open the lib, get the global variable _G
     luaL_openlibs(L);
@@ -89,6 +131,7 @@ static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[
     lua_pop(L, 1);
 
     rd->L = L;
+    rd->self = self;
 
     res = enif_make_resource(env, rd);
     enif_release_resource(rd);
