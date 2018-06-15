@@ -9,7 +9,7 @@
 
 #include "luex_nif.h"
 
-static int l_luex_print(lua_State* L) {
+static int luex_print(lua_State* L) {
     int nargs = lua_gettop(L);
     for (int i=1; i <= nargs; ++i) {
         enif_fprintf(stderr, luaL_checkstring(L, i));
@@ -19,7 +19,11 @@ static int l_luex_print(lua_State* L) {
     return 0;
 }
 
-static int l_send(lua_State* L) {
+static int luex_receive(lua_State* L) {
+  return 0;
+}
+
+static int luex_send(lua_State* L) {
     int nargs = lua_gettop(L);
     ERL_NIF_TERM send_data;
     void* user_data_ptr;
@@ -40,18 +44,23 @@ static int l_send(lua_State* L) {
     if(user_data_ptr == NULL) {
       luaL_error(L, "Could not find global private data object!\r\n");
     }
-    
+
     priv = (priv_data_t*)user_data_ptr;
     lua_pop(L, 2);
 
-    send_data = enif_make_tuple2(env, priv->atom_ok, lua_return_to_tuple(env, priv, L, nargs));
+    send_data = enif_make_tuple2(env, enif_make_resource(env, rd), lua_return_to_tuple(env, priv, L, nargs));
     enif_send(env, &rd->self, NULL, send_data);
     return 0;
 }
 
+// static int luex_wrap(lua_State* L) {
+//
+// }
+
 static const struct luaL_Reg LUEX_NIF_LUA_LIB [] = {
-    {"print", l_luex_print},
-    {"send",  l_send},
+    {"print",    luex_print},
+    {"send",     luex_send},
+    {"receive",  luex_receive},
     {NULL, NULL}
 };
 
@@ -102,7 +111,7 @@ static void unload(ErlNifEnv* env, void* priv) {
 
 static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
     priv_data_t* priv = enif_priv_data(env);
-    resource_data_t *rd;
+    resource_data_t* rd;
     ErlNifPid self;
     enif_self(env, &self);
 
@@ -112,9 +121,6 @@ static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[
 
     lua_state_t *L;
     L = luaL_newstate();
-
-    lua_pushlightuserdata(L, (void*)env);
-    lua_setglobal(L, "__ENV__");
 
     lua_pushlightuserdata(L, (void*)rd);
     lua_setglobal(L, "__RESOURCE_DATA__");
@@ -139,9 +145,67 @@ static ERL_NIF_TERM luex_init(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[
     return enif_make_tuple2(env, priv->atom_ok, res);
 }
 
+/*
+TODO(Connor) this is such a hack.
+*/
+
+// register_function(l, :add, 2)
+static ERL_NIF_TERM luex_register_function(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
+  priv_data_t* priv = enif_priv_data(env);
+  (void)priv; // not used.
+
+  resource_data_t* rd;
+  ERL_NIF_TERM function;
+  char* function_char;
+  unsigned int size;
+  int arity;
+
+  if(!enif_get_resource(env, argv[0], resource_type, (void **)&rd))
+      return enif_make_badarg(env);
+
+  if(!enif_is_atom(env, argv[1]))
+      return enif_make_badarg(env);
+  function = argv[1];
+
+  if(!enif_get_int(env, argv[2], &arity))
+      return enif_make_badarg(env);
+
+
+  enif_get_atom_length(env, function, &size, ERL_NIF_LATIN1);
+  size = size * sizeof(char) + 1;
+  function_char = malloc(size);
+  enif_get_atom(env, function, function_char, size, ERL_NIF_LATIN1);
+  enif_fprintf(stderr, "registering function: %s %d\r\n", function_char, arity);
+
+  const char* templ = HERETXT(
+    _G.%s = function(...)
+       local n = select('#', ...);
+       local arg = {...};
+       send("call", %s, unpack(arg));
+       return receive();
+    end
+    \0
+  );
+  char* data;
+  int len = snprintf(NULL, 0, templ, function_char, function_char);
+  data = malloc(len * sizeof(char) + 1);
+  snprintf(data, len + 1, templ, function_char, function_char);
+
+  if(luaL_dostring(rd->L, data) != LUA_OK) {
+      ErlNifBinary output;
+      const char* boop = lua_tostring(rd->L, -1);
+      enif_alloc_binary(strlen(boop), &output);
+      strcpy(output.data, boop);
+      return enif_make_tuple2(env, priv->atom_error, enif_make_binary(env, &output));
+  }
+
+  free(function_char);
+  return enif_make_resource(env, rd);
+}
+
 static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
     priv_data_t* priv = enif_priv_data(env);
-    resource_data_t *rd;
+    resource_data_t* rd;
     ErlNifBinary input;
 
     if(!enif_get_resource(env, argv[0], resource_type, (void **)&rd))
@@ -171,7 +235,7 @@ static ERL_NIF_TERM luex_dostring(ErlNifEnv *env, int argc, const ERL_NIF_TERM a
 
 static ERL_NIF_TERM luex_dofile(ErlNifEnv *env, int argc, const ERL_NIF_TERM argv[]) {
     priv_data_t* priv = enif_priv_data(env);
-    resource_data_t *rd;
+    resource_data_t* rd;
     ErlNifBinary input;
 
     if(!enif_get_resource(env, argv[0], resource_type, (void **)&rd))

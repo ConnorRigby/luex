@@ -26,7 +26,7 @@ defmodule Luex do
   @spec dofile(l, Path.t()) :: {:ok, lua_return} | {:error, binary}
   def dofile(_l, _str), do: :erlang.nif_error("luex nif not loaded")
 
-  def register_function(l, _fun, _arity), do: l 
+  def register_function(_l, _fun, _arity), do: :erlang.nif_error("luex nif not loaded")
 
   @on_load :load_nif
   @doc false
